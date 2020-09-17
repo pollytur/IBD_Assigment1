@@ -6,6 +6,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
@@ -16,18 +17,24 @@ import java.io.IOException;
 public class WordEnumerator extends Helper {
 
     public static class WordEnumeratorReducer extends Reducer<Text,IntWritable,Text,IntWritable> {
+        enum WordEnum {
+            ID
+        }
 
         public void reduce(Text key, Iterable<IntWritable> values, Context context)
                 throws IOException, InterruptedException
         {
-            Long id = context.getCounter("enumerate", "count").getValue();
-            context.getCounter("enumerate", "count").increment(1);
-            context.write(key, new IntWritable(id.intValue()));
 
+            Counter counter = context.getCounter(WordEnum.class.getName(), WordEnum.ID.toString());
+            Long id = counter.getValue();
+            counter.increment(1);
+            Configuration conf = context.getConfiguration();
+            conf.set(key.toString(), id.toString());
+            context.write(key, new IntWritable(id.intValue()));
         }
 
     }
-    public static void main(String[] args) throws Exception {
+    public static int run(String[] args) throws Exception {
         Configuration conf = new Configuration();
         Job job = Job.getInstance(conf, "word enumerator");
         job.setJarByClass(WordEnumerator.class);
@@ -38,6 +45,7 @@ public class WordEnumerator extends Helper {
         job.setOutputValueClass(IntWritable.class);
         FileInputFormat.addInputPath(job, new Path(args[0]));
         FileOutputFormat.setOutputPath(job, new Path(args[1]));
-        System.exit(job.waitForCompletion(true) ? 0 : 1);
+
+        return (job.waitForCompletion(true) ? 0 : 1);
     }
 }

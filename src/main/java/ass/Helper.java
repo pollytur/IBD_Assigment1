@@ -25,7 +25,8 @@ public class Helper {
                 JSONObject json = (JSONObject) parser.parse(line);
 //                https://stackoverflow.com/questions/18830813/how-can-i-remove-punctuation-from-input-text-in-java
 //                removes all non-letter characters
-                String[] words = json.get("text").toString().replaceAll("[^a-zA-Z ]", "").split("\\s+");
+                String[] words = json.get("text").toString().replaceAll("[^a-zA-Z ]", " ").
+                        trim().split("\\s+");
                 for (int i = 0; i < words.length; i++) {
                     context.write(new Text(words[i]), one);
                 }

@@ -30,6 +30,7 @@ public class DocumentCount extends Helper {
     }
 
     public static void main(String[] args) throws Exception {
+        System.out.println("I am document count");
         Configuration conf = new Configuration();
         Job job = Job.getInstance(conf, "document count");
         job.setJarByClass(DocumentCount.class);
