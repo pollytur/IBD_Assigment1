@@ -3,40 +3,85 @@ package ass;
 // Word Enumerator = TokenizerMapper + IntSumCombiner + WordEnumeratorReduce
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RemoteIterator;
+import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.Counter;
-import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 public class WordEnumerator extends Helper {
 
-    public static class WordEnumeratorReducer extends Reducer<Text,IntWritable,Text,IntWritable> {
+    public static class WordEnumeratorReducer extends Reducer<Text, IntWritable, Text, Text> {
         enum WordEnum {
             ID
         }
 
+
         public void reduce(Text key, Iterable<IntWritable> values, Context context)
-                throws IOException, InterruptedException
-        {
+                throws IOException, InterruptedException {
 
             Counter counter = context.getCounter(WordEnum.class.getName(), WordEnum.ID.toString());
-            Long id = counter.getValue();
+            long id = counter.getValue();
             counter.increment(1);
-            Configuration conf = context.getConfiguration();
-            conf.set(key.toString(), id.toString());
-            context.write(key, new IntWritable(id.intValue()));
+            context.write(key, new Text(id+"_"+context.getConfiguration().get(key.toString())));
         }
 
+        public void readFile(FileSystem fs, Path path, Configuration conf) throws IOException {
+
+            byte[] bytes = IOUtils.readFullyToByteArray(fs.open(path));
+            String content = new String(bytes, StandardCharsets.UTF_8);
+
+            for (String line : content.split("\n")) {
+                String[] parts = line.split("\t");
+                conf.set(parts[0], parts[1]);
+            }
+        }
+
+        @Override
+        protected void setup(Reducer.Context context) throws IOException {
+            try {
+                Configuration conf = context.getConfiguration();
+                FileSystem fs = FileSystem.get(conf);
+                // the second boolean parameter here sets the recursion to true
+                RemoteIterator<LocatedFileStatus> fileStatusListIterator = fs.listFiles(new Path(context.getConfiguration().get("_path2")), false);
+                while (fileStatusListIterator.hasNext()) {
+                    LocatedFileStatus fileStatus = fileStatusListIterator.next();
+                    Path loc = fileStatus.getPath();
+                    if (loc.getName().startsWith("part-r-")) {
+                        readFile(fs, loc, context.getConfiguration());
+                    }
+                }
+
+            } catch (NullPointerException e) {
+                e.printStackTrace();
+            }
+        }
     }
+
     public static int run(String[] args) throws Exception {
+        String[] argsCleared = new String[]{args[0], args[2]};
+        int r2 = DocumentCount.run(argsCleared);
+
+
         Configuration conf = new Configuration();
+        conf.set("_path2", args[2]);
         Job job = Job.getInstance(conf, "word enumerator");
+
+
+        List<Path> cacheFiles2 = getPathsByName(conf, args[2]);
+        for (Path p : cacheFiles2)
+            job.addCacheFile(p.toUri());
+
+
         job.setJarByClass(WordEnumerator.class);
         job.setMapperClass(Helper.TokenizerMapper.class);
         job.setCombinerClass(Helper.IntSumCombiner.class);

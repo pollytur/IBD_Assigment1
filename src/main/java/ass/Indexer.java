@@ -31,36 +31,51 @@ import org.json.simple.parser.ParseException;
 
 public class Indexer {
 
-    public static class IndexerMapper extends Mapper<Object, Text, IntWritable, Text> {
+    public static Integer maxIds = 0;
 
-        public void readFile(FileSystem fs, Path path, Configuration conf) throws IOException {
+    public static void readFile(FileSystem fs, Path path, Configuration conf) throws IOException {
 
-            byte[] bytes = IOUtils.readFullyToByteArray(fs.open(path));
-            String content = new String(bytes, StandardCharsets.UTF_8);
-
-            for (String line : content.split("\n")) {
-                String[] parts = line.split("\t");
-                conf.set(parts[0], parts[1]);
+        byte[] bytes = IOUtils.readFullyToByteArray(fs.open(path));
+        String content = new String(bytes, StandardCharsets.UTF_8);
+        Integer maxId = 0;
+        for (String line : content.split("\n")) {
+            String[] parts = line.split("\t");
+            Integer cur = Integer.parseInt(parts[1].split("_")[0]);
+            if (cur>maxId){
+                maxId = cur;
             }
+            conf.set(parts[0], parts[1]);
+        }
+        maxIds = maxId;
+    }
+
+    protected static void setupPlaceholder ( Configuration conf) throws IOException {
+        try {
+            FileSystem fs = FileSystem.get(conf);
+            // the second boolean parameter here sets the recursion to true
+            RemoteIterator<LocatedFileStatus> fileStatusListIterator = fs.listFiles(new Path(conf.get("_path")), false);
+            while (fileStatusListIterator.hasNext()) {
+                LocatedFileStatus fileStatus = fileStatusListIterator.next();
+                Path loc = fileStatus.getPath();
+                if (loc.getName().startsWith("part-r-")) {
+                    readFile(fs, loc, conf);
+                }
+            }
+
+        } catch (NullPointerException e) {
+            e.printStackTrace();
         }
 
+    }
 
+
+    public static class IndexerMapper extends Mapper<Object, Text, IntWritable, Text> {
+
+        @Override
         protected void setup(Mapper.Context context) throws IOException {
-            try {
-                Configuration conf = context.getConfiguration();
-                FileSystem fs = FileSystem.get(conf);
-                // the second boolean parameter here sets the recursion to true
-                RemoteIterator<LocatedFileStatus> fileStatusListIterator = fs.listFiles(new Path(context.getConfiguration().get("_path")), false);
-                while (fileStatusListIterator.hasNext()) {
-                    LocatedFileStatus fileStatus = fileStatusListIterator.next();
-                    Path loc = fileStatus.getPath();
-                    if (loc.getName().startsWith("part-r-")) {
-                        readFile(fs, loc, context.getConfiguration());
-                    }
-                }
-            } catch (NullPointerException e) {
-                e.printStackTrace();
-            }
+            Configuration conf = context.getConfiguration();
+            setupPlaceholder(conf);
+
         }
 
         public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
@@ -89,11 +104,27 @@ public class Indexer {
 
     public static class IndexerReducer extends Reducer<IntWritable, Text, IntWritable, Text> {
 
+        @Override
+        protected void setup(Reducer.Context context) throws IOException {
+            Configuration conf = context.getConfiguration();
+            setupPlaceholder(conf);
+
+        }
+
+
         public void reduce(IntWritable docid, Iterable<Text> values, Context context)
                 throws IOException, InterruptedException {
 
             String[] merged = concatStringsWSep(values, "=").split("=");
-            List<IntWritable> mergedInt = Arrays.stream(merged).map(s-> new IntWritable(Integer.parseInt(s.trim()))).collect(Collectors.toList());
+            HashMap<IntWritable,Double> hm = new HashMap<IntWritable,Double>();
+            for(String s : merged){
+                System.out.println(s);
+                String[] splitted = s.split("_");
+                hm.put(new IntWritable(Integer.parseInt(splitted[0])), Double.parseDouble(splitted[1]));
+            }
+
+            List<IntWritable> mergedInt = Arrays.stream(merged).map(s-> new IntWritable(Integer.
+                    parseInt(s.split("_")[0].trim()))).collect(Collectors.toList());
 
             Map<IntWritable, Long> counts = mergedInt.stream().collect(Collectors.groupingBy(e -> e, Collectors.counting()));
 //           sorting by keys
@@ -101,9 +132,14 @@ public class Indexer {
             List<IntWritable> keys = new ArrayList<IntWritable>(sorted.keySet());
 
             StringJoiner sb = new StringJoiner("=");
-            for(IntWritable st: keys) {
-                String s = String.format("(%s,%d)", st.toString(), sorted.get(st).intValue() );
-                sb.add(s);
+            for (int i =0; i<maxIds; i++){
+                if (sorted.keySet().contains(new IntWritable(i))){
+                    Double val = ((sorted.get(new IntWritable(i)).intValue())/hm.get(new IntWritable(i)));
+                    sb.add(val.toString());
+                }
+                else{
+                    sb.add("0");
+                }
             }
             context.write(docid, new Text(sb.toString()));
         }
@@ -122,26 +158,14 @@ public class Indexer {
     }
 
 
-    public static List<Path> getPathsByName(Configuration conf, String path) throws IOException {
-        FileSystem fs = FileSystem.get(conf);
-        RemoteIterator<LocatedFileStatus> fileStatusListIterator = fs.listFiles(new Path(path), false);
-        List<Path> pathArr = new ArrayList<Path>();
-        while (fileStatusListIterator.hasNext()) {
-            LocatedFileStatus fileStatus = fileStatusListIterator.next();
-            Path loc = fileStatus.getPath();
-            if (loc.getName().startsWith("part-r-")) {
-                pathArr.add(loc);
-            }
-        }
 
-        return pathArr;
-    }
 
     private static void run(String[] args) throws Exception {
+
         Configuration conf = new Configuration();
         conf.set("_path", args[1]);
-        Job job = Job.getInstance(conf, "word count");
-        List<Path> cacheFiles = getPathsByName(conf, args[1]);
+        Job job = Job.getInstance(conf, "SAMARAAAAAA word count");
+        List<Path> cacheFiles = Helper.getPathsByName(conf, args[1]);
         for (Path p : cacheFiles)
             job.addCacheFile(p.toUri());
 
@@ -151,12 +175,18 @@ public class Indexer {
         job.setOutputKeyClass(IntWritable.class);
         job.setOutputValueClass(Text.class);
         FileInputFormat.addInputPath(job, new Path(args[0]));
-        FileOutputFormat.setOutputPath(job, new Path(args[2]));
+        FileOutputFormat.setOutputPath(job, new Path(args[3]));
         System.exit(job.waitForCompletion(true) ? 0 : 1);
     }
 
     public static void main(String[] args) throws Exception {
+//        0 argument is input for all
+//        1 argument is output for wordEnumerator output
+//        2 argument is for Document Count output
+//        3 argument is for Indexer Output
         int r1 = WordEnumerator.run(args);
+//        String[] argsCleared = new String[]{args[0], args[2]};
+//        int r2 = DocumentCount.run(argsCleared);
         run(args);
     }
 
