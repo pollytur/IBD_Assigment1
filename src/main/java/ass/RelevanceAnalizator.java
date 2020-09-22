@@ -20,33 +20,41 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 public class RelevanceAnalizator {
 
 
+    // Mapper in MapReduce paradigm
+    public static class AnalizatorMapper extends Mapper<Object, Text, IntWritable, Text> {
+
+    }
+
+    // Reducer in MapReduce paradigm
+    public static class AnalizatorReducer extends Reducer<IntWritable, Text, IntWritable, Text> {
+
+    }
+
     private static void run(String[] args) throws Exception {
 
         Configuration conf = new Configuration();
         conf.set("_path", args[1]);
-        Job job = Job.getInstance(conf, "SAMARAAAAAA word count");
-        List<Path> cacheFiles = Helper.getPathsByName(conf, args[1]);
-        for (Path p : cacheFiles)
-            job.addCacheFile(p.toUri());
+        Job job = Job.getInstance(conf, "Query execution");
 
-        job.setJarByClass(Indexer.class);
-        // job.setMapperClass(IndexerMapper.class);
-        // job.setReducerClass(IndexerReducer.class);
-        job.setOutputKeyClass(IntWritable.class);
-        job.setOutputValueClass(Text.class);
-        FileInputFormat.addInputPath(job, new Path(args[0]));
-        FileOutputFormat.setOutputPath(job, new Path(args[3]));
-        System.exit(job.waitForCompletion(true) ? 0 : 1);
+        QueryVectorizer vectorizer = new QueryVectorizer(conf, args[2]);
+        // List<Path> cacheFiles = Helper.getPathsByName(conf, args[1]);
+        // for (Path p : cacheFiles)
+        //     job.addCacheFile(p.toUri());
+
+        // job.setJarByClass(Indexer.class);
+        // job.setMapperClass(AnalizatorMapper.class);
+        // job.setReducerClass(AnalizatorReducer.class);
+        // job.setOutputKeyClass(IntWritable.class);
+        // job.setOutputValueClass(Text.class);
+        // FileInputFormat.addInputPath(job, new Path(args[0]));
+        // FileOutputFormat.setOutputPath(job, new Path(args[3]));
+        // System.exit(job.waitForCompletion(true) ? 0 : 1);
     }
 
     public static void main(String[] args) throws Exception {
-        // //        0 argument is input for all
-        // //        1 argument is output for wordEnumerator output
-        // //        2 argument is for Document Count output
-        // //        3 argument is for Indexer Output
-        //         int r1 = WordEnumerator.run(args);
-        // //        String[] argsCleared = new String[]{args[0], args[2]};
-        // //        int r2 = DocumentCount.run(argsCleared);
+        //        0 argument is a query
+        //        1 argument is output for analizator
+        //        2 argument is a path to word ID and IDFs
         run(args);
     }
 }
