@@ -3,14 +3,12 @@ package ass;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.function.ToDoubleBiFunction;
 import java.util.stream.Collectors;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.IOUtils;
-import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Job;
@@ -110,7 +108,6 @@ public class RelevanceAnalizator {
 
             }
 
-
         }
 
     }
@@ -174,7 +171,23 @@ public class RelevanceAnalizator {
         job.setOutputValueClass(Text.class);
         FileInputFormat.addInputPath(job, new Path(args[1]));
         FileOutputFormat.setOutputPath(job, new Path(args[2]));
-        System.exit(job.waitForCompletion(true) ? 0 : 1);
+        int res = (job.waitForCompletion(true) ? 0 : 1);
+        try {
+            FileSystem fs = FileSystem.get(conf);
+            RemoteIterator<LocatedFileStatus> fileStatusListIterator = fs.listFiles(new Path(args[2]), false);
+            while (fileStatusListIterator.hasNext()) {
+                LocatedFileStatus fileStatus = fileStatusListIterator.next();
+                Path loc = fileStatus.getPath();
+                if (loc.getName().startsWith("part-r-")) {
+                    byte[] bytes = IOUtils.readFullyToByteArray(fs.open(loc));
+                    String content = new String(bytes, StandardCharsets.UTF_8);
+                    System.out.println(content);
+                }
+            }
+
+        } catch (NullPointerException e) {
+            e.printStackTrace();
+        }
     }
 
     private static void printHelp() {
@@ -187,7 +200,7 @@ public class RelevanceAnalizator {
     }
 
     public static void main(String[] args) throws Exception {
-//        0 argument is input from  Document Count output
+//        0 argument is input from  Word Enumerator output
 //        1 argument is input from  Indexer output
 //        2 argument is output
 //        3 argument is query
@@ -211,6 +224,7 @@ public class RelevanceAnalizator {
             
             if (isNumber) {
                 run(args);
+
             }
         }
     }
