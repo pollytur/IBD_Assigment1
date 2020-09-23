@@ -198,8 +198,9 @@ public class RelevanceAnalizator {
             System.out.println("Invalid number of arguments");
             System.out.println("");
             printHelp();
+        } else {
+            run(args);
         }
-        run(args);
     }
 
 }

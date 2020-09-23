@@ -201,11 +201,13 @@ public class Indexer {
             System.out.println("Invalid number of arguments");
             System.out.println("");
             printHelp();
+        } else {
+            int r1 = WordEnumerator.run(args);
+
+            run(args);
         }
 
-        int r1 = WordEnumerator.run(args);
-
-        run(args);
+        
     }
 
 }
