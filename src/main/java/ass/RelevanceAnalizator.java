@@ -3,6 +3,7 @@ package ass;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.function.ToDoubleBiFunction;
 import java.util.stream.Collectors;
 
 import org.apache.hadoop.conf.Configuration;
@@ -30,7 +31,74 @@ public class RelevanceAnalizator {
 
     }
 
-    private static void run(String[] args) throws Exception {
+    /**
+     * Get vector from given document
+     */
+    private double[] parseDoc(String document) {
+        String[] temp = document.split("=");
+
+        double[] ret = new double[temp.length];
+        for (String str : temp) {
+            ret[i] = Double.parseDouble(str);
+        }
+
+        return ret;
+    }
+
+    /**
+     * Compute relevance score using naive approach:
+     * simply find dot product between query and document
+     */
+    private double getRelevanceScoreBasic(double[] query, double[] document) {
+        double score = 0;
+
+        for (int i = 0; i < query.length; i++) {
+            score += query[i] * document[i];
+        }
+        return score;
+    }
+
+    /**
+     * Compute relevance score using more advanced
+     * Okapi BM25 ranking function
+     */
+    private double getRelevanceScoreBM25(double[] query, double[] document, double docLength) {
+        double score = 0;
+
+        double b = 0.75;
+        double k1 = 2;
+
+        // In assignment, there is a mistake:
+        // It states that we need IDF(di);
+        // However, it should be IDF(qi)
+        double idf = 1; // TODO
+        double avgLength = 1; // TODO
+
+        for (int i = 0; i < query.length; i++) {
+            double tmp1 = document[i] * (k1 + 1);
+            double tmp2 = document[i] + k1 * (1-b + b * docLength/avgLength);
+
+            score += idf * tmp1 / tmp2;
+        }
+        return score;
+    }
+
+    /**
+     * A useful function for BM25 ranker
+     */
+    private int getDocLength(String document) {
+        String[] temp = document.split("=");
+
+        int len = 0;
+        for (String str : temp) {
+            if (!str.equals("0")) {
+                len++;
+            }
+        }
+        return len;
+    }
+
+    public static void run(String[] args) throws Exception {
 
         Configuration conf = new Configuration();
         conf.set("_path", args[1]);
