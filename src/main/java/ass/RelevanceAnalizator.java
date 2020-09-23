@@ -183,7 +183,7 @@ public class RelevanceAnalizator {
         System.out.println("2nd: Directory containing Indexer output");
         System.out.println("3rd: Directory for output");
         System.out.println("4th: Query itself");
-        System.out.println("5th: Length of top");
+        System.out.println("5th: Number of relevant documents to output");
     }
 
     public static void main(String[] args) throws Exception {
