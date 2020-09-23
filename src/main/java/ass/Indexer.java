@@ -114,36 +114,39 @@ public class Indexer {
 
         public void reduce(IntWritable docid, Iterable<Text> values, Context context)
                 throws IOException, InterruptedException {
-
             String[] merged = concatStringsWSep(values, "=").split("=");
-            HashMap<IntWritable,Double> hm = new HashMap<IntWritable,Double>();
-            for(String s : merged){
-                System.out.println(s);
-                String[] splitted = s.split("_");
-                hm.put(new IntWritable(Integer.parseInt(splitted[0])), Double.parseDouble(splitted[1]));
-            }
-
-            List<IntWritable> mergedInt = Arrays.stream(merged).map(s-> new IntWritable(Integer.
-                    parseInt(s.split("_")[0].trim()))).collect(Collectors.toList());
-
-            Map<IntWritable, Long> counts = mergedInt.stream().collect(Collectors.groupingBy(e -> e, Collectors.counting()));
-//           sorting by keys
-            Map<IntWritable, Long> sorted = new TreeMap<IntWritable, Long>(counts);
-            List<IntWritable> keys = new ArrayList<IntWritable>(sorted.keySet());
-
-            StringJoiner sb = new StringJoiner("=");
-            for (int i =0; i<maxIds; i++){
-                if (sorted.keySet().contains(new IntWritable(i))){
-                    Double val = ((sorted.get(new IntWritable(i)).intValue())/hm.get(new IntWritable(i)));
-                    sb.add(val.toString());
-                }
-                else{
-                    sb.add("0");
-                }
-            }
-            context.write(docid, new Text(sb.toString()));
+            context.write(docid, new Text(inside_reduce(merged)));
         }
 
+    }
+
+    public static String inside_reduce(String[] merged){
+
+        HashMap<IntWritable,Double> hm = new HashMap<IntWritable,Double>();
+        for(String s : merged){
+            String[] splitted = s.split("_");
+            hm.put(new IntWritable(Integer.parseInt(splitted[0])), Double.parseDouble(splitted[1]));
+        }
+
+        List<IntWritable> mergedInt = Arrays.stream(merged).map(s-> new IntWritable(Integer.
+                parseInt(s.split("_")[0].trim()))).collect(Collectors.toList());
+
+        Map<IntWritable, Long> counts = mergedInt.stream().collect(Collectors.groupingBy(e -> e, Collectors.counting()));
+//           sorting by keys
+        Map<IntWritable, Long> sorted = new TreeMap<IntWritable, Long>(counts);
+        List<IntWritable> keys = new ArrayList<IntWritable>(sorted.keySet());
+
+        StringJoiner sb = new StringJoiner("=");
+        for (int i =0; i<maxIds; i++){
+            if (sorted.keySet().contains(new IntWritable(i))){
+                Double val = ((sorted.get(new IntWritable(i)).intValue())/hm.get(new IntWritable(i)));
+                sb.add(val.toString());
+            }
+            else{
+                sb.add("0");
+            }
+        }
+        return sb.toString();
     }
 
     public static String concatStringsWSep(Iterable<Text> strings, String separator) {
