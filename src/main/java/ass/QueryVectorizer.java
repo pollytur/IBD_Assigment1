@@ -56,56 +56,29 @@ public class QueryVectorizer {
 
 
     public static class QueryMapper extends Mapper<Object, Text, IntWritable, Text> {
-        static double[] queryVector;
+//        static double[] queryVector;
 
-        @Override
-        protected void setup(Mapper.Context context) throws IOException {
-            Configuration conf = context.getConfiguration();
-            setupPlaceholder(conf);
+//        @Override
+//        protected void setup(Mapper.Context context) throws IOException {
+//            Configuration conf = context.getConfiguration();
+//            setupPlaceholder(conf);
+//
+//            String[] words = conf.get("_query").replaceAll("[^a-zA-Z -]", " ").
+//                    trim().split("\\s+");
+//
+//            String[] idsStream = Arrays.stream(words).map(conf::get).collect(Collectors.toList()).toArray(new String[0]);
+//
+//            String output = inside_reduce(idsStream);
+//
+//            queryVector = Arrays.stream( output.split("="))
+//                    .mapToDouble(Double::parseDouble)
+//                    .toArray();
+//
+//
+//        }
 
-            String[] words = conf.get("_query").replaceAll("[^a-zA-Z -]", " ").
-                    trim().split("\\s+");
-
-            String[] idsStream = Arrays.stream(words).map(conf::get).collect(Collectors.toList()).toArray(new String[0]);
-
-            String output = inside_reduce(idsStream);
-
-            queryVector = Arrays.stream( output.split("="))
-                    .mapToDouble(Double::parseDouble)
-                    .toArray();
 
 
-        }
-
-
-
-    }
-
-    private static void run(String[] args) throws Exception {
-
-        Configuration conf = new Configuration();
-        conf.set("_query", args[2]);
-        conf.set("_path", args[0]);
-        Job job = Job.getInstance(conf, "SAMARAAAAAA word count");
-        List<Path> cacheFiles = Helper.getPathsByName(conf, args[0]);
-        for (Path p : cacheFiles)
-            job.addCacheFile(p.toUri());
-
-        job.setJarByClass(QueryVectorizer.class);
-        job.setMapperClass(QueryMapper.class);
-        job.setReducerClass(ass.Indexer.IndexerReducer.class);
-        job.setOutputKeyClass(IntWritable.class);
-        job.setOutputValueClass(Text.class);
-        FileInputFormat.addInputPath(job, new Path(args[0]));
-        FileOutputFormat.setOutputPath(job, new Path(args[1]));
-        System.exit(job.waitForCompletion(true) ? 0 : 1);
-    }
-
-    public static void main(String[] args) throws Exception {
-//        0 argument is input from  Document Count output
-//        1 argument is output
-//        2 argument is query
-        run(args);
     }
 
 

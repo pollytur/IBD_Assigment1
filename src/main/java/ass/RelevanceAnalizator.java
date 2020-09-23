@@ -8,55 +8,113 @@ import java.util.stream.Collectors;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
+import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
+import static ass.Indexer.*;
+
 
 public class RelevanceAnalizator {
+    static double[] queryVector;
 
 
     // Mapper in MapReduce paradigm
-    public static class AnalizatorMapper extends Mapper<Object, Text, IntWritable, Text> {
+    public static class AnalizatorMapper extends Mapper<Object, Text, DoubleWritable, Text> {
+
+        /**
+         * Compute relevance score using naive approach:
+         * simply find dot product between query and document
+         */
+        private Double getRelevanceScoreBasic(double[] query, double[] document) {
+            double score = 0;
+
+            for (int i = 0; i < query.length; i++) {
+                score += query[i] * document[i];
+            }
+            return score;
+        }
+
+
+        @Override
+        protected void setup(Mapper.Context context) throws IOException {
+            Configuration conf = context.getConfiguration();
+            setupPlaceholder(conf);
+
+
+            String[] words = conf.get("_query").replaceAll("[^a-zA-Z -]", " ").
+                    trim().split("\\s+");
+
+            String[] idsStream = Arrays.stream(words).map(conf::get).collect(Collectors.toList()).toArray(new String[0]);
+
+            String output = inside_reduce(idsStream);
+
+            queryVector = Arrays.stream(output.split("="))
+                    .mapToDouble(Double::parseDouble)
+                    .toArray();
+
+        }
+
+
+        public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
+
+            String[] line = value.toString().split("\t");
+            double[] coefs = Arrays.stream(line[1].split("="))
+                    .mapToDouble(Double::parseDouble)
+                    .toArray();
+//          multiply by -1 because hadoop reduce will return the values in the ascending order
+            DoubleWritable score = new DoubleWritable((-1.0) * getRelevanceScoreBasic(queryVector, coefs));
+
+            context.write(score, new Text(line[0]));
+
+        }
 
     }
 
     // Reducer in MapReduce paradigm
-    public static class AnalizatorReducer extends Reducer<IntWritable, Text, IntWritable, Text> {
+    public static class AnalizatorReducer extends Reducer<DoubleWritable, Text, DoubleWritable, Text> {
 
-    }
-
-    /**
-     * Get vector from given document
-     */
-    private double[] parseDoc(String document) {
-        String[] temp = document.split("=");
-
-        double[] ret = new double[temp.length];
-        for (String str : temp) {
-            ret[i] = Double.parseDouble(str);
+        enum MaxDocs {
+            LENGTH
         }
 
-        return ret;
-    }
+        public void reduce(DoubleWritable key, Iterable<Text> values, Context context)
+                throws IOException, InterruptedException {
+            Counter counter = context.getCounter(MaxDocs.class.getName(), MaxDocs.LENGTH.toString());
+            Long topLength = Long.parseLong(context.getConfiguration().get("_top_length"));
+            if (topLength > counter.getValue()) {
+                String[] prep = concatStringsWSep(values, "&").split("&");
+                if (counter.getValue() + prep.length <= topLength) {
+                    for (String s : prep) {
+                        System.out.println(String.valueOf(key).join(" ", prep));
+                        context.write(new DoubleWritable( Double.parseDouble(key.toString())*(-1.0)), new Text(s));
+                    }
+                    counter.increment(prep.length);
+                }
+                else{ 
+                    Iterator<Text> iter = values.iterator();
+                    for (int i=0; i<(topLength -counter.getValue()); i++){
+                       Text txt = iter.next();
+                        System.out.println(String.valueOf(key).join(" ", txt.toString()));
+                        context.write(new DoubleWritable( Double.parseDouble(key.toString())*(-1.0)), txt);
+                    }
 
-    /**
-     * Compute relevance score using naive approach:
-     * simply find dot product between query and document
-     */
-    private double getRelevanceScoreBasic(double[] query, double[] document) {
-        double score = 0;
+                }
 
-        for (int i = 0; i < query.length; i++) {
-            score += query[i] * document[i];
+            }
+
+
         }
-        return score;
+
     }
+
 
     /**
      * Compute relevance score using more advanced
@@ -76,7 +134,7 @@ public class RelevanceAnalizator {
 
         for (int i = 0; i < query.length; i++) {
             double tmp1 = document[i] * (k1 + 1);
-            double tmp2 = document[i] + k1 * (1-b + b * docLength/avgLength);
+            double tmp2 = document[i] + k1 * (1 - b + b * docLength / avgLength);
 
             score += idf * tmp1 / tmp2;
         }
@@ -98,31 +156,34 @@ public class RelevanceAnalizator {
         return len;
     }
 
-    public static void run(String[] args) throws Exception {
+    private static void run(String[] args) throws Exception {
 
         Configuration conf = new Configuration();
-        conf.set("_path", args[1]);
-        Job job = Job.getInstance(conf, "Query execution");
+        conf.set("_query", args[3]);
+        conf.set("_path", args[0]);
+        conf.set("_top_length", args[4]);
+        Job job = Job.getInstance(conf, "SAMARAAAAAA word count");
+        List<Path> cacheFiles = Helper.getPathsByName(conf, args[0]);
+        for (Path p : cacheFiles)
+            job.addCacheFile(p.toUri());
 
-        QueryVectorizer vectorizer = new QueryVectorizer(conf, args[2]);
-        // List<Path> cacheFiles = Helper.getPathsByName(conf, args[1]);
-        // for (Path p : cacheFiles)
-        //     job.addCacheFile(p.toUri());
-
-        // job.setJarByClass(Indexer.class);
-        // job.setMapperClass(AnalizatorMapper.class);
-        // job.setReducerClass(AnalizatorReducer.class);
-        // job.setOutputKeyClass(IntWritable.class);
-        // job.setOutputValueClass(Text.class);
-        // FileInputFormat.addInputPath(job, new Path(args[0]));
-        // FileOutputFormat.setOutputPath(job, new Path(args[3]));
-        // System.exit(job.waitForCompletion(true) ? 0 : 1);
+        job.setJarByClass(RelevanceAnalizator.class);
+        job.setMapperClass(AnalizatorMapper.class);
+        job.setReducerClass(ass.Indexer.IndexerReducer.class);
+        job.setOutputKeyClass(IntWritable.class);
+        job.setOutputValueClass(Text.class);
+        FileInputFormat.addInputPath(job, new Path(args[1]));
+        FileOutputFormat.setOutputPath(job, new Path(args[2]));
+        System.exit(job.waitForCompletion(true) ? 0 : 1);
     }
 
     public static void main(String[] args) throws Exception {
-        //        0 argument is a query
-        //        1 argument is output for analizator
-        //        2 argument is a path to word ID and IDFs
+//        0 argument is input from  Document Count output
+//        1 argument is input from  Indexer output
+//        2 argument is output
+//        3 argument is query
+//        4 argument is length of top
         run(args);
     }
+
 }
