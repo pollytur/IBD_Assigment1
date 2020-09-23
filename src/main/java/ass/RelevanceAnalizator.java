@@ -169,8 +169,8 @@ public class RelevanceAnalizator {
 
         job.setJarByClass(RelevanceAnalizator.class);
         job.setMapperClass(AnalizatorMapper.class);
-        job.setReducerClass(ass.Indexer.IndexerReducer.class);
-        job.setOutputKeyClass(IntWritable.class);
+        job.setReducerClass(AnalizatorReducer.class);
+        job.setOutputKeyClass(DoubleWritable.class);
         job.setOutputValueClass(Text.class);
         FileInputFormat.addInputPath(job, new Path(args[1]));
         FileOutputFormat.setOutputPath(job, new Path(args[2]));
@@ -195,8 +195,7 @@ public class RelevanceAnalizator {
         if (args[0].equals("--help")) {
             printHelp();
         } else if (args.length != 5) {
-            System.out.println("Invalid number of arguments");
-            System.out.println("");
+            System.out.println("Invalid number of arguments \n");
             printHelp();
         } else {
             run(args);
