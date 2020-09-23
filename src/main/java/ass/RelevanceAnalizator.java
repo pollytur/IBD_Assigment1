@@ -177,12 +177,28 @@ public class RelevanceAnalizator {
         System.exit(job.waitForCompletion(true) ? 0 : 1);
     }
 
+    private static void printHelp() {
+        System.out.println("Indexer must get the following 5 arguments:");
+        System.out.println("1st: Directory containing Document Count output");
+        System.out.println("2nd: Directory containing Indexer output");
+        System.out.println("3rd: Directory for output");
+        System.out.println("4th: Query itself");
+        System.out.println("5th: Length of top");
+    }
+
     public static void main(String[] args) throws Exception {
 //        0 argument is input from  Document Count output
 //        1 argument is input from  Indexer output
 //        2 argument is output
 //        3 argument is query
 //        4 argument is length of top
+        if (args[0].equals("--help")) {
+            printHelp();
+        } else if (args.length != 5) {
+            System.out.println("Invalid number of arguments");
+            System.out.println("");
+            printHelp();
+        }
         run(args);
     }
 

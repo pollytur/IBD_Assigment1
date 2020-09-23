@@ -182,14 +182,29 @@ public class Indexer {
         System.exit(job.waitForCompletion(true) ? 0 : 1);
     }
 
+    private static void printHelp() {
+        System.out.println("Indexer must get the following 4 arguments:");
+        System.out.println("1st: Path to directory containing text corpus");
+        System.out.println("2nd: Directory for Word Enumerator output");
+        System.out.println("3rd: Directory for Document Count output");
+        System.out.println("4th: Directory for Indexer output");
+    }
+
     public static void main(String[] args) throws Exception {
 //        0 argument is input for all
 //        1 argument is output for wordEnumerator output
 //        2 argument is for Document Count output
 //        3 argument is for Indexer Output
+        if (args[0].equals("--help")) {
+            printHelp();
+        } else if (args.length != 4) {
+            System.out.println("Invalid number of arguments");
+            System.out.println("");
+            printHelp();
+        }
+
         int r1 = WordEnumerator.run(args);
-//        String[] argsCleared = new String[]{args[0], args[2]};
-//        int r2 = DocumentCount.run(argsCleared);
+
         run(args);
     }
 
