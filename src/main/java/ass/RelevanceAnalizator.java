@@ -198,7 +198,20 @@ public class RelevanceAnalizator {
             System.out.println("Invalid number of arguments \n");
             printHelp();
         } else {
-            run(args);
+            boolean isNumber = true;
+
+            try {
+                Integer.parseInt(args[4]);
+            } catch (Exception e) {
+                System.out.println("The last argument should be a number");
+                System.out.println("");
+                printHelp();
+                isNumber = false;
+            }
+            
+            if (isNumber) {
+                run(args);
+            }
         }
     }
 
