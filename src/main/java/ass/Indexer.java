@@ -85,7 +85,7 @@ public class Indexer {
 
             try {
                 JSONObject json = (JSONObject) parser.parse(line);
-                String[] words = json.get("text").toString().replaceAll("[^a-zA-Z ]", " ").
+                String[] words = json.get("text").toString().toLowerCase().replaceAll("[^a-zA-Z ]", " ").
                         trim().split("\\s+");
 
                 List<String> idsStream = Arrays.stream(words).map(conf::get).collect(Collectors.toList());

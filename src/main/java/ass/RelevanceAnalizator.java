@@ -46,7 +46,7 @@ public class RelevanceAnalizator {
             setupPlaceholder(conf);
 
 
-            String[] words = conf.get("_query").replaceAll("[^a-zA-Z -]", " ").
+            String[] words = conf.get("_query").toLowerCase().replaceAll("[^a-zA-Z -]", " ").
                     trim().split("\\s+");
 
             for (int i = 0; i < words.length; i++) {
