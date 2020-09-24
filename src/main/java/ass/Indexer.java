@@ -41,7 +41,7 @@ public class Indexer {
         for (String line : content.split("\n")) {
             String[] parts = line.split("\t");
             Integer cur = Integer.parseInt(parts[1].split("_")[0]);
-            if (cur>maxId){
+            if (cur > maxId) {
                 maxId = cur;
             }
             conf.set(parts[0], parts[1]);
@@ -49,7 +49,7 @@ public class Indexer {
         maxIds = maxId;
     }
 
-    protected static void setupPlaceholder ( Configuration conf) throws IOException {
+    protected static void setupPlaceholder(Configuration conf) throws IOException {
         try {
             FileSystem fs = FileSystem.get(conf);
             // the second boolean parameter here sets the recursion to true
@@ -90,7 +90,8 @@ public class Indexer {
 
                 List<String> idsStream = Arrays.stream(words).map(conf::get).collect(Collectors.toList());
 
-                Text outputIds = new Text("".join("=", idsStream)); // todo: delimiter is '='
+                Text outputIds = new Text(String.format("%s___%s", "".join("=", idsStream),
+                        json.get("title").toString())); // todo: delimiter is '='
                 IntWritable docId = new IntWritable(Integer.parseInt(json.get("id").toString().trim()));
                 context.write(docId, outputIds);
             } catch (ParseException e) {
@@ -104,6 +105,7 @@ public class Indexer {
 
     public static class IndexerReducer extends Reducer<IntWritable, Text, IntWritable, Text> {
 
+
         @Override
         protected void setup(Reducer.Context context) throws IOException {
             Configuration conf = context.getConfiguration();
@@ -114,21 +116,32 @@ public class Indexer {
 
         public void reduce(IntWritable docid, Iterable<Text> values, Context context)
                 throws IOException, InterruptedException {
-            String[] merged = concatStringsWSep(values, "=").split("=");
-            context.write(docid, new Text(inside_reduce(merged)));
+            String prepOne = "";
+
+            StringBuilder sb = new StringBuilder();
+            String sep = "";
+            for (Text st : values) {
+                String[] s = st.toString().split("___");
+                prepOne = s[1];
+                sb.append(sep).append(s[0]);
+                sep = "=";
+            }
+
+            String[] merged = sb.toString().split("=");
+            context.write(docid, new Text(String.format("%s___%s", inside_reduce(merged), prepOne)));
         }
 
     }
 
-    public static String inside_reduce(String[] merged){
+    public static String inside_reduce(String[] merged) {
 
-        HashMap<IntWritable,Double> hm = new HashMap<IntWritable,Double>();
-        for(String s : merged){
+        HashMap<IntWritable, Double> hm = new HashMap<IntWritable, Double>();
+        for (String s : merged) {
             String[] splitted = s.split("_");
             hm.put(new IntWritable(Integer.parseInt(splitted[0])), Double.parseDouble(splitted[1]));
         }
 
-        List<IntWritable> mergedInt = Arrays.stream(merged).map(s-> new IntWritable(Integer.
+        List<IntWritable> mergedInt = Arrays.stream(merged).map(s -> new IntWritable(Integer.
                 parseInt(s.split("_")[0].trim()))).collect(Collectors.toList());
 
         Map<IntWritable, Long> counts = mergedInt.stream().collect(Collectors.groupingBy(e -> e, Collectors.counting()));
@@ -137,12 +150,11 @@ public class Indexer {
         List<IntWritable> keys = new ArrayList<IntWritable>(sorted.keySet());
 
         StringJoiner sb = new StringJoiner("=");
-        for (int i =0; i<maxIds; i++){
-            if (sorted.keySet().contains(new IntWritable(i))){
-                Double val = ((sorted.get(new IntWritable(i)).intValue())/hm.get(new IntWritable(i)));
+        for (int i = 0; i < maxIds; i++) {
+            if (sorted.keySet().contains(new IntWritable(i))) {
+                Double val = ((sorted.get(new IntWritable(i)).intValue()) / hm.get(new IntWritable(i)));
                 sb.add(val.toString());
-            }
-            else{
+            } else {
                 sb.add("0");
             }
         }
@@ -152,16 +164,13 @@ public class Indexer {
     public static String concatStringsWSep(Iterable<Text> strings, String separator) {
         StringBuilder sb = new StringBuilder();
         String sep = "";
-        for(Text st: strings) {
+        for (Text st : strings) {
             String s = st.toString();
             sb.append(sep).append(s);
             sep = separator;
         }
         return sb.toString();
     }
-
-
-
 
     private static void run(String[] args) throws Exception {
 
@@ -198,8 +207,7 @@ public class Indexer {
         if (args[0].equals("--help")) {
             printHelp();
         } else if (args.length != 4) {
-            System.out.println("Invalid number of arguments");
-            System.out.println("");
+            System.out.println("Invalid number of arguments\n");
             printHelp();
         } else {
             int r1 = WordEnumerator.run(args);
@@ -207,7 +215,7 @@ public class Indexer {
             run(args);
         }
 
-        
+
     }
 
 }

@@ -3,7 +3,6 @@ package ass;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
@@ -50,9 +49,19 @@ public class RelevanceAnalizator {
             String[] words = conf.get("_query").replaceAll("[^a-zA-Z -]", " ").
                     trim().split("\\s+");
 
-            String[] idsStream = Arrays.stream(words).map(conf::get).collect(Collectors.toList()).toArray(new String[0]);
+            for (int i = 0; i < words.length; i++) {
+                try {
+                    words[i] = conf.get(words[i]);
+                } catch (Exception e) {
+//                    just ignore unknown words
+                    e.printStackTrace();
+                }
 
-            String output = inside_reduce(idsStream);
+            }
+
+//            String[] idsStream = Arrays.stream(words).collect(Collectors.toList()).toArray(new String[0]);
+
+            String output = inside_reduce(words);
 
             queryVector = Arrays.stream(output.split("="))
                     .mapToDouble(Double::parseDouble)
@@ -64,13 +73,14 @@ public class RelevanceAnalizator {
         public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
 
             String[] line = value.toString().split("\t");
-            double[] coefs = Arrays.stream(line[1].split("="))
+            String[] encodings = line[1].split("___");
+            double[] coefs = Arrays.stream(encodings[0].split("="))
                     .mapToDouble(Double::parseDouble)
                     .toArray();
 //          multiply by -1 because hadoop reduce will return the values in the ascending order
             DoubleWritable score = new DoubleWritable((-1.0) * getRelevanceScoreBasic(queryVector, coefs));
 
-            context.write(score, new Text(line[0]));
+            context.write(score, new Text(encodings[1]));
 
         }
 
@@ -92,16 +102,15 @@ public class RelevanceAnalizator {
                 if (counter.getValue() + prep.length <= topLength) {
                     for (String s : prep) {
                         System.out.println(String.valueOf(key).join(" ", prep));
-                        context.write(new DoubleWritable( Double.parseDouble(key.toString())*(-1.0)), new Text(s));
+                        context.write(new DoubleWritable(Double.parseDouble(key.toString()) * (-1.0)), new Text(s));
                     }
                     counter.increment(prep.length);
-                }
-                else{ 
+                } else {
                     Iterator<Text> iter = values.iterator();
-                    for (int i=0; i<(topLength -counter.getValue()); i++){
-                       Text txt = iter.next();
+                    for (int i = 0; i < (topLength - counter.getValue()); i++) {
+                        Text txt = iter.next();
                         System.out.println(String.valueOf(key).join(" ", txt.toString()));
-                        context.write(new DoubleWritable( Double.parseDouble(key.toString())*(-1.0)), txt);
+                        context.write(new DoubleWritable(Double.parseDouble(key.toString()) * (-1.0)), txt);
                     }
 
                 }
@@ -110,47 +119,6 @@ public class RelevanceAnalizator {
 
         }
 
-    }
-
-
-    /**
-     * Compute relevance score using more advanced
-     * Okapi BM25 ranking function
-     */
-    private double getRelevanceScoreBM25(double[] query, double[] document, double docLength) {
-        double score = 0;
-
-        double b = 0.75;
-        double k1 = 2;
-
-        // In assignment, there is a mistake:
-        // It states that we need IDF(di);
-        // However, it should be IDF(qi)
-        double idf = 1; // TODO
-        double avgLength = 1; // TODO
-
-        for (int i = 0; i < query.length; i++) {
-            double tmp1 = document[i] * (k1 + 1);
-            double tmp2 = document[i] + k1 * (1 - b + b * docLength / avgLength);
-
-            score += idf * tmp1 / tmp2;
-        }
-        return score;
-    }
-
-    /**
-     * A useful function for BM25 ranker
-     */
-    private int getDocLength(String document) {
-        String[] temp = document.split("=");
-
-        int len = 0;
-        for (String str : temp) {
-            if (!str.equals("0")) {
-                len++;
-            }
-        }
-        return len;
     }
 
     private static void run(String[] args) throws Exception {
@@ -216,12 +184,11 @@ public class RelevanceAnalizator {
             try {
                 Integer.parseInt(args[4]);
             } catch (Exception e) {
-                System.out.println("The last argument should be a number");
-                System.out.println("");
+                System.out.println("The last argument should be a number\n");
                 printHelp();
                 isNumber = false;
             }
-            
+
             if (isNumber) {
                 run(args);
 
