@@ -4,7 +4,7 @@ This repository contains the submission files of our group for the 1st Assignmen
 
 Building results in two jars: Indexer and Query, for indexing text corpus and quering the search engine respectively. Both are based on Hadoop's MapReduce, and therefore require hadoop to run
 
-Running Indexer Jar:
+## Running Indexer Jar:  
 hadoop jar BM-Indexer-0.2.jar /EnWikiSmall bm-word-enumerator
 bm-doc-counter bm-indexer-out
 
@@ -15,7 +15,7 @@ Arguments you need to provide after container name are:
 4.  Directory for AverageDocLength output
 5.  Directory for Indexer output
 
-Running Query Jar:
+## Running Query Jar:  
 hadoop jar BM-Query-0.1.jar word-enumerator-out bm-indexer-out
 bm-av-doc-count bm-query-out "cats top" 5
 
