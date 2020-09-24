@@ -92,7 +92,6 @@ public class RelevanceAnalizator {
                 if (hm.keySet().contains(Integer.parseInt(splitted[0]))) {
                     int freq = Integer.parseInt(splitted[1]);
 //                    BM25 calculations
-//                    Double.parseDouble(context.getConfiguration())
                     res += hm.get(Integer.parseInt(splitted[0])) *
                             freq * (kOne + 1) / (freq - b + b * thisLength * 1.0 / avgLength);
                 }
@@ -185,9 +184,10 @@ public class RelevanceAnalizator {
         System.out.println("Indexer must get the following 5 arguments:");
         System.out.println("1st: Directory containing Document Count output");
         System.out.println("2nd: Directory containing Indexer output");
-        System.out.println("3rd: Directory for output");
-        System.out.println("4th: Query itself");
-        System.out.println("5th: Number of relevant documents to output");
+        System.out.println("3th: Directory containing AverageDocLength output");
+        System.out.println("4rd: Directory for output");
+        System.out.println("5th: Query itself");
+        System.out.println("6th: Number of relevant documents to output");
     }
 
     public static void main(String[] args) throws Exception {

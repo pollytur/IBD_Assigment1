@@ -103,8 +103,10 @@ public class Indexer {
 
             StringBuilder sb = new StringBuilder();
             String sep = "";
+            int splits = 0;
             for (Text st : values) {
                 String[] s = st.toString().split("___");
+                splits +=1;
                 prepOne = s[1];
                 prepTwo = s[2];
                 sb.append(sep).append(s[0]);
@@ -121,7 +123,8 @@ public class Indexer {
                 sep = "=";
             }
 
-            String result = String.format("%s___%s___%s", sb.toString(), prepOne, prepTwo);
+            String result = String.format("%s___%s___%s", sb.toString(), prepOne,
+                    String.valueOf(Integer.parseInt(prepTwo)*splits));
             context.write(docid, new Text(result));
         }
 
