@@ -2,6 +2,8 @@
 
 This repository contains the submission files of our group for the 1st Assignment of the Introduction to Big Data course.
 
+***In master branch - there is default model implementation, in the bm25 branch we have implementation to BM25 coefficient***
+
 Building results in two jars: Indexer and Query, for indexing text corpus and quering the search engine respectively. Both are based on Hadoop's MapReduce, and therefore require hadoop to run
 
 ## Running Indexer Jar:  
