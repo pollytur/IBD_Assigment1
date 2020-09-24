@@ -32,7 +32,7 @@ public class AverageDocLength {
             try {
                 JSONObject json = (JSONObject) parser.parse(line);
 
-                String[] words = json.get("text").toString().replaceAll("[^a-zA-Z ]", " ").
+                String[] words = json.get("text").toString().toLowerCase().replaceAll("[^a-zA-Z ]", " ").
                         trim().split("\\s+");
                 context.write(one, new IntWritable(words.length));
 

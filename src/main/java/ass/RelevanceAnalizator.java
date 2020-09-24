@@ -36,8 +36,8 @@ public class RelevanceAnalizator {
             setupPlaceholder(conf);
 
 
-            String[] words = conf.get("_query").replaceAll("[^a-zA-Z -]", " ").
-                    trim().split("\\s+");
+            String[] words = conf.get("_query").toLowerCase().replaceAll("[^a-zA-Z -]", " ").
+                    toLowerCase().trim().split("\\s+");
 
 //            String[] idsStream = Arrays.stream(words).map(conf::get).collect(Collectors.toList()).toArray(new String[0]);
 

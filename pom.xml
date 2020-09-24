@@ -5,8 +5,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>search</groupId>
-    <artifactId>BM-Query</artifactId>
-    <version>0.2</version>
+    <artifactId>BM-Indexer</artifactId>
+    <version>0.3</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -53,7 +53,7 @@
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>libs/</classpathPrefix>
                             <mainClass>
-                                ass.RelevanceAnalizator
+                                ass.Indexer
                             </mainClass>
                         </manifest>
                     </archive>
